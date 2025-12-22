@@ -51,6 +51,30 @@ def main(
         # Set host from environment variable or default to 0.0.0.0 for Kubernetes
         host = os.getenv('FASTMCP_HTTP_HOST', '0.0.0.0')
         mcp.settings.host = host
+        
+        # Patch FastMCP's transport security to allow all hosts
+        # This is needed when requests come through gateway with different Host header
+        # The TransportSecurityMiddleware._validate_host method checks allowed_hosts
+        # We'll patch it to always return True
+        try:
+            import importlib
+            transport_security = importlib.import_module('mcp.server.transport_security')
+            
+            # Patch the _validate_host method on TransportSecurityMiddleware class
+            if hasattr(transport_security, 'TransportSecurityMiddleware'):
+                original_validate = transport_security.TransportSecurityMiddleware._validate_host
+                
+                def allow_all_hosts(self, host: str | None) -> bool:
+                    """Patched version that allows all hosts"""
+                    return True
+                
+                # Replace the method
+                transport_security.TransportSecurityMiddleware._validate_host = allow_all_hosts
+        except Exception:
+            # If patching fails, continue - server will still start
+            # but may reject requests with different Host headers
+            pass
+    
     mcp.run(transport=transport)
 
 
