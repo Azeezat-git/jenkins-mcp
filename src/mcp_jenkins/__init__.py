@@ -48,6 +48,9 @@ def main(
 
     if transport in ['sse', 'streamable-http']:
         mcp.settings.port = port
+        # Set host from environment variable or default to 0.0.0.0 for Kubernetes
+        host = os.getenv('FASTMCP_HTTP_HOST', '0.0.0.0')
+        mcp.settings.host = host
     mcp.run(transport=transport)
 
 
