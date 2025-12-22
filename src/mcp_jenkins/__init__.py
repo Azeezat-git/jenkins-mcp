@@ -51,9 +51,6 @@ def main(
         # Set host from environment variable or default to 0.0.0.0 for Kubernetes
         host = os.getenv('FASTMCP_HTTP_HOST', '0.0.0.0')
         mcp.settings.host = host
-        # Disable host header validation to allow requests through gateway/proxy
-        # This allows requests with any Host header (needed for Kubernetes Service routing)
-        mcp.settings.allowed_hosts = ['*']
     mcp.run(transport=transport)
 
 
