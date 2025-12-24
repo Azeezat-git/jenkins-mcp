@@ -40,6 +40,7 @@ class JenkinsBuild:
     ) -> str:
         """
         Retrieve logs from a specific build.
+        Uses jenkins_open to directly access consoleText endpoint for better multibranch pipeline support.
 
         Args:
             fullname: The fullname of the job
@@ -51,8 +52,26 @@ class JenkinsBuild:
         Returns:
             str: The logs of the build
         """
+        # Construct build URL similar to get_build_sourcecode
+        splitted_path = fullname.split('/')
+        name = '/job/'.join(splitted_path[:-1])
+        short_name = splitted_path[-1]
+
+        jenkins_url = self._jenkins.server.rstrip('/')
+        console_url = f'{jenkins_url}/job/{name}/job/{short_name}/{number}/consoleText'
+
+        # Use jenkins_open instead of get_build_console_output for better multibranch support
+        try:
+            response = self._jenkins.jenkins_open(
+                requests.Request('GET', console_url)
+            )
+            lines = response.split('\n')
+        except Exception:
+            # Fallback to original method if jenkins_open fails
+            lines = self._jenkins.get_build_console_output(fullname, number).split('\n')
+
+        # Rest of the logic remains the same
         result = []
-        lines = self._jenkins.get_build_console_output(fullname, number).split('\n')
         for line in lines if seq == 'asc' else reversed(lines):
             if pattern is None or re.search(pattern, line):
                 result.append(line)
@@ -96,6 +115,39 @@ class JenkinsBuild:
             return str(textarea.text)
         else:
             return 'No Script found'
+
+    def get_build_stages(self, fullname: str, number: int) -> dict:
+        """
+        Retrieve stage information from a Jenkins pipeline build using Workflow API.
+
+        Args:
+            fullname: The fullname of the job
+            number: The build number
+
+        Returns:
+            dict: Stage information including status, duration, and errors for each stage
+        """
+        import json
+
+        splitted_path = fullname.split('/')
+        name = '/job/'.join(splitted_path[:-1])
+        short_name = splitted_path[-1]
+
+        jenkins_url = self._jenkins.server.rstrip('/')
+        wfapi_url = f'{jenkins_url}/job/{name}/job/{short_name}/{number}/wfapi/describe'
+
+        try:
+            response = self._jenkins.jenkins_open(
+                requests.Request('GET', wfapi_url)
+            )
+            return json.loads(response)
+        except Exception as e:
+            # Return empty structure if API call fails
+            return {
+                'stages': [],
+                'status': 'UNKNOWN',
+                'error': str(e) if e else 'Failed to retrieve stage information'
+            }
 
     def get_test_report(self, fullname: str, number: int) -> JenkinsTestReport:
         """

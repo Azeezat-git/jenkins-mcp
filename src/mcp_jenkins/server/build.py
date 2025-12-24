@@ -92,6 +92,21 @@ async def get_build_logs(
     return client(ctx).build.get_build_logs(fullname, build_number, pattern, limit, seq)
 
 
+@mcp.tool(tag='read')
+async def get_build_stages(ctx: Context, fullname: str, build_number: int) -> dict:
+    """
+    Get stage information from a Jenkins pipeline build
+
+    Args:
+        fullname: The fullname of the job
+        build_number: The number of the build
+
+    Returns:
+        dict: Stage information with status, duration, and errors for each stage
+    """
+    return client(ctx).build.get_build_stages(fullname, build_number)
+
+
 @mcp.tool(tag='write')
 async def stop_build(ctx: Context, fullname: str, build_number: int) -> None:
     """
